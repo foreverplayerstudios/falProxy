@@ -30,11 +30,11 @@ function debugLog(...args: any[]) { if (DEBUG_MODE) console.log("[DEBUG]", ...ar
 console.log(`Debug mode is ${DEBUG_MODE ? 'ENABLED' : 'DISABLED'}.`);
 
 // --- Environment Variable Validation ---
-if (!CUSTOM_ACCESS_KEY) { console.error("FATAL: CUSTOM_ACCESS_KEY is not set."); Deno.exit(1); }
-if (!AI_KEYS_RAW) { console.error("FATAL: AI_KEYS environment variable is not set."); Deno.exit(1); }
+if (!CUSTOM_ACCESS_KEY) { console.error("FATAL: CUSTOM_ACCESS_KEY is not set."); throw new Error("CUSTOM_ACCESS_KEY is not set"); }
+if (!AI_KEYS_RAW) { console.error("FATAL: AI_KEYS environment variable is not set."); throw new Error("AI_KEYS environment variable is not set"); }
 const AI_KEYS = AI_KEYS_RAW.split(',').map(key => key.trim()).filter(key => key.length > 0);
-if (AI_KEYS.length === 0) { console.error("FATAL: AI_KEYS contains no valid keys."); Deno.exit(1); }
-if (SUPPORTED_MODELS_MAP.size === 0) { console.error("FATAL: SUPPORTED_MODELS in .env is not set or is invalid."); Deno.exit(1); }
+if (AI_KEYS.length === 0) { console.error("FATAL: AI_KEYS contains no valid keys."); throw new Error("AI_KEYS contains no valid keys"); }
+if (SUPPORTED_MODELS_MAP.size === 0) { console.error("FATAL: SUPPORTED_MODELS in .env is not set or is invalid."); throw new Error("SUPPORTED_MODELS in .env is not set or is invalid"); }
 console.log(`Loaded ${SUPPORTED_MODELS_MAP.size} supported models from .env`);
 
 
