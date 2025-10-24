@@ -30,7 +30,9 @@ function debugLog(...args: any[]) { if (DEBUG_MODE) console.log("[DEBUG]", ...ar
 console.log(`Debug mode is ${DEBUG_MODE ? 'ENABLED' : 'DISABLED'}.`);
 
 // --- Environment Variable Validation ---
-if (!CUSTOM_ACCESS_KEY) { console.error("FATAL: CUSTOM_ACCESS_KEY is not set."); throw new Error("CUSTOM_ACCESS_KEY is not set"); }
+if (!CUSTOM_ACCESS_KEY) { 
+    console.warn("WARNING: CUSTOM_ACCESS_KEY is not set. Authentication will fail at runtime."); 
+}
 if (!AI_KEYS_RAW) { console.error("FATAL: AI_KEYS environment variable is not set."); throw new Error("AI_KEYS environment variable is not set"); }
 const AI_KEYS = AI_KEYS_RAW.split(',').map(key => key.trim()).filter(key => key.length > 0);
 if (AI_KEYS.length === 0) { console.error("FATAL: AI_KEYS contains no valid keys."); throw new Error("AI_KEYS contains no valid keys"); }
@@ -124,7 +126,24 @@ async function getModelConfig(modelName: string): Promise<ModelConfig | null> {
 // --- Helper Functions ---
 function getRandomApiKey(): string { const randomIndex = Math.floor(Math.random() * AI_KEYS.length); return AI_KEYS[randomIndex]; }
 interface AuthResult { valid: boolean; userKey?: string; apiKey?: string; error?: string; }
-function extractAndValidateApiKey(request: Request): AuthResult { const authHeader = request.headers.get('Authorization') || ''; let userKey: string | undefined; if (authHeader.startsWith('Bearer ')) userKey = authHeader.substring(7); else if (authHeader.startsWith('Key ')) userKey = authHeader.substring(4); else userKey = authHeader; if (!userKey) return { valid: false, userKey, error: "Authorization header missing or empty." }; if (userKey !== CUSTOM_ACCESS_KEY) { console.log(`Authentication failed: Invalid user key provided.`); return { valid: false, userKey: "provided_but_invalid", error: "Invalid API key." }; } const randomApiKey = getRandomApiKey(); return { valid: true, userKey, apiKey: randomApiKey }; }
+function extractAndValidateApiKey(request: Request): AuthResult { 
+    if (!CUSTOM_ACCESS_KEY) {
+        console.error("CUSTOM_ACCESS_KEY is not configured. Authentication cannot proceed.");
+        return { valid: false, error: "Server configuration error: CUSTOM_ACCESS_KEY is not set." };
+    }
+    const authHeader = request.headers.get('Authorization') || ''; 
+    let userKey: string | undefined; 
+    if (authHeader.startsWith('Bearer ')) userKey = authHeader.substring(7); 
+    else if (authHeader.startsWith('Key ')) userKey = authHeader.substring(4); 
+    else userKey = authHeader; 
+    if (!userKey) return { valid: false, userKey, error: "Authorization header missing or empty." }; 
+    if (userKey !== CUSTOM_ACCESS_KEY) { 
+        console.log(`Authentication failed: Invalid user key provided.`); 
+        return { valid: false, userKey: "provided_but_invalid", error: "Invalid API key." }; 
+    } 
+    const randomApiKey = getRandomApiKey(); 
+    return { valid: true, userKey, apiKey: randomApiKey }; 
+}
 function parseSize(sizeString?: string): { width: number; height: number } | null { if (!sizeString || typeof sizeString !== 'string') return null; const parts = sizeString.toLowerCase().split('x'); if (parts.length === 2) { const width = parseInt(parts[0], 10); const height = parseInt(parts[1], 10); if (!isNaN(width) && !isNaN(height) && width > 0 && height > 0) return { width, height }; } return null; }
 function gcd(a: number, b: number): number { while (b) { [a, b] = [b, a % b]; } return a; }
 function calculateAspectRatio(width: number, height: number): string { if (!width || !height || width <= 0 || height <= 0) return "1:1"; const divisor = gcd(width, height); return `${width / divisor}:${height / divisor}`; }
