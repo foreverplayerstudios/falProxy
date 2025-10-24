@@ -33,10 +33,20 @@ console.log(`Debug mode is ${DEBUG_MODE ? 'ENABLED' : 'DISABLED'}.`);
 if (!CUSTOM_ACCESS_KEY) { 
     console.warn("WARNING: CUSTOM_ACCESS_KEY is not set. Authentication will fail at runtime."); 
 }
-if (!AI_KEYS_RAW) { console.error("FATAL: AI_KEYS environment variable is not set."); throw new Error("AI_KEYS environment variable is not set"); }
-const AI_KEYS = AI_KEYS_RAW.split(',').map(key => key.trim()).filter(key => key.length > 0);
-if (AI_KEYS.length === 0) { console.error("FATAL: AI_KEYS contains no valid keys."); throw new Error("AI_KEYS contains no valid keys"); }
-if (SUPPORTED_MODELS_MAP.size === 0) { console.error("FATAL: SUPPORTED_MODELS in .env is not set or is invalid."); throw new Error("SUPPORTED_MODELS in .env is not set or is invalid"); }
+
+let AI_KEYS: string[] = [];
+if (!AI_KEYS_RAW) { 
+    console.warn("WARNING: AI_KEYS environment variable is not set. Image generation requests will fail at runtime."); 
+} else {
+    AI_KEYS = AI_KEYS_RAW.split(',').map(key => key.trim()).filter(key => key.length > 0);
+    if (AI_KEYS.length === 0) { 
+        console.warn("WARNING: AI_KEYS contains no valid keys. Image generation requests will fail at runtime."); 
+    }
+}
+
+if (SUPPORTED_MODELS_MAP.size === 0) { 
+    console.warn("WARNING: SUPPORTED_MODELS in .env is not set or is invalid. Image generation requests will fail at runtime."); 
+}
 console.log(`Loaded ${SUPPORTED_MODELS_MAP.size} supported models from .env`);
 
 
@@ -124,7 +134,11 @@ async function getModelConfig(modelName: string): Promise<ModelConfig | null> {
 }
 
 // --- Helper Functions ---
-function getRandomApiKey(): string { const randomIndex = Math.floor(Math.random() * AI_KEYS.length); return AI_KEYS[randomIndex]; }
+function getRandomApiKey(): string | null { 
+    if (AI_KEYS.length === 0) return null;
+    const randomIndex = Math.floor(Math.random() * AI_KEYS.length); 
+    return AI_KEYS[randomIndex]; 
+}
 interface AuthResult { valid: boolean; userKey?: string; apiKey?: string; error?: string; }
 function extractAndValidateApiKey(request: Request): AuthResult { 
     if (!CUSTOM_ACCESS_KEY) {
@@ -141,7 +155,11 @@ function extractAndValidateApiKey(request: Request): AuthResult {
         console.log(`Authentication failed: Invalid user key provided.`); 
         return { valid: false, userKey: "provided_but_invalid", error: "Invalid API key." }; 
     } 
-    const randomApiKey = getRandomApiKey(); 
+    const randomApiKey = getRandomApiKey();
+    if (!randomApiKey) {
+        console.error("AI_KEYS is not configured. Cannot generate images.");
+        return { valid: false, error: "Server configuration error: AI_KEYS is not set." };
+    }
     return { valid: true, userKey, apiKey: randomApiKey }; 
 }
 function parseSize(sizeString?: string): { width: number; height: number } | null { if (!sizeString || typeof sizeString !== 'string') return null; const parts = sizeString.toLowerCase().split('x'); if (parts.length === 2) { const width = parseInt(parts[0], 10); const height = parseInt(parts[1], 10); if (!isNaN(width) && !isNaN(height) && width > 0 && height > 0) return { width, height }; } return null; }
